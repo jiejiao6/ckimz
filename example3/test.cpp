@@ -293,9 +293,21 @@ int GetPropValue(const char* name, char *value) {
 	}
 	return result;
 }
+bool ishook2(){
+	static char ishookflag[100] = { 0 };
+	bool bGet = GetCatValue("ishook",ishookflag);
+	if(bGet){
+		if(strstr(ishookflag,"true")){
+			return true;
+		}else
+			return false;
+	}
+	return false;
+	
+}
 bool ishook(){
 	if((getuid()<=1000)&&(!strstr(AppName,"getprop"))){
 		return false;
 	}else
-		return true;
+		return ishook2();
 }
