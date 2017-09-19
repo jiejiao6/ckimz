@@ -14,34 +14,36 @@
 #define TAG "HOOKTEST"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 
-#define CAT_PATH "sdcard/xx/file/native/cat.xml"
+#define CAT_PATH "/sdcard/xx/file/native/cat.xml"
 
-#define REAL_WLAN_PATH "/sys/class/net/wlan0/address"
+#define SETTING_PATH "/sdcard/xx/file/native/setting.xml"
+
+#define REAL_WLAN_PATH "sys/class/net/wlan0/address"
 #define FAKE_WLAN_PATH "/sdcard/xx/file/native/wlan0"
 
-#define REAL_DUMMY_PATH "/sys/class/net/dummy0/address"
+#define REAL_DUMMY_PATH "sys/class/net/dummy0/address"
 #define FAKE_DUMMY_PATH "/sdcard/xx/file/native/dummy0"
 
-#define REAL_P2P_PATH "/sys/class/net/p2p0/address"
+#define REAL_P2P_PATH "sys/class/net/p2p0/address"
 #define FAKE_P2P_PATH "/sdcard/xx/file/native/p2p0"
 
-#define REAL_PPP_PATH "/sys/class/net/ppp0/address"
+#define REAL_PPP_PATH "sys/class/net/ppp0/address"
 #define FAKE_PPP_PATH "/sdcard/xx/file/native/ppp0"
 
-#define REAL_USBNET_PATH "/sys/class/net/usbnet0/address"
+#define REAL_USBNET_PATH "sys/class/net/usbnet0/address"
 #define FAKE_USBNET_PATH "/sdcard/xx/file/native/usbnet0"
 
-#define REAL_CID_PATH1 "/sys/block/mmcblk0/device/cid"
-#define REAL_CID_PATH2 "/sys/block/mmcblk0boot0/device/device/cid"
-#define REAL_CID_PATH3 "/sys/block/mmcblk0boot1/device/device/cid"
+#define REAL_CID_PATH1 "sys/block/mmcblk0/device/cid"
+#define REAL_CID_PATH2 "sys/block/mmcblk0boot0/device/device/cid"
+#define REAL_CID_PATH3 "sys/block/mmcblk0boot1/device/device/cid"
 #define FAKE_CID_PATH "/sdcard/xx/file/native/cid"
 
-#define REAL_CSD_PATH1 "/sys/block/mmcblk0/device/csd"
-#define REAL_CSD_PATH2 "/sys/block/mmcblk0boot0/device/device/csd"
-#define REAL_CSD_PATH3 "/sys/block/mmcblk0boot1/device/device/csd"
+#define REAL_CSD_PATH1 "sys/block/mmcblk0/device/csd"
+#define REAL_CSD_PATH2 "sys/block/mmcblk0boot0/device/device/csd"
+#define REAL_CSD_PATH3 "sys/block/mmcblk0boot1/device/device/csd"
 #define FAKE_CSD_PATH "/sdcard/xx/file/native/csd"
 
-#define REAL_IF_INET6_PATH "/proc/net/if_inet6"
+#define REAL_IF_INET6_PATH "proc/net/if_inet6"
 #define FAKE_IF_INET6_PATH "/sdcard/xx/file/native/if_inet6"
 int my_init(void) __attribute__((constructor));
 //char * getfilemac();
@@ -70,6 +72,37 @@ bool GetCatValue(char *key, char *value) {
 	using namespace tinyxml2;
 	XMLDocument *doc = new XMLDocument();
 	XMLError err = doc->LoadFile(CAT_PATH);
+	if (err == XML_SUCCESS) {
+		XMLElement *map = doc->FirstChildElement("map");
+		if (!map->NoChildren()) {
+			XMLElement *ele = map->FirstChildElement();
+			const char *result = NULL;
+			while (ele) {
+				const char *attr = ele->Attribute("name");
+				if (strstr(key, attr)) {
+					const char *r = ele->GetText();
+					result = r;
+					strcpy(value, result);
+					LOGD("GetCatValue key:%s,value:%s", key, value);
+					break;
+				}
+				ele = ele->NextSiblingElement();
+			}
+			if (result) {
+			} else {
+				return false;
+			}
+		}
+	} else {
+		return false;
+	}
+	delete doc;
+	return true;
+}
+bool GetSettingValue(char *key,char *value,const char *path){
+	using namespace tinyxml2;
+	XMLDocument *doc = new XMLDocument();
+	XMLError err = doc->LoadFile(path);
 	if (err == XML_SUCCESS) {
 		XMLElement *map = doc->FirstChildElement("map");
 		if (!map->NoChildren()) {
@@ -128,6 +161,13 @@ t_fopen _fopen = NULL;
 void (*old_fopen)(const char *file, const char *mode)=NULL;
 void new_fopen(const char *file, const char *mode)
 {
+	
+	if(strstr(file,SETTING_PATH)){
+		return old_fopen(file,mode);
+	}
+	if(!ishook())
+		return old_fopen(file,mode);
+	//}else{
 	if(strstr(file,REAL_WLAN_PATH)) return old_fopen(FAKE_WLAN_PATH,mode);
 	else if(strstr(file,REAL_DUMMY_PATH)) return old_fopen(FAKE_DUMMY_PATH,mode);
 	else if(strstr(file,REAL_P2P_PATH)) return old_fopen(FAKE_P2P_PATH,mode);
@@ -142,6 +182,7 @@ void new_fopen(const char *file, const char *mode)
 	else if(strstr(file,REAL_IF_INET6_PATH))return old_fopen(FAKE_IF_INET6_PATH, mode);
 	else 
 		return old_fopen(file,mode);
+	//}
 }
 
 int my_init(void)
@@ -295,7 +336,8 @@ int GetPropValue(const char* name, char *value) {
 }
 bool ishook2(){
 	static char ishookflag[100] = { 0 };
-	bool bGet = GetCatValue("ishook",ishookflag);
+	bool bGet = GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
+	//bool bGet = GetCatValue("ishook",ishookflag);
 	if(bGet){
 		if(strstr(ishookflag,"true")){
 			return true;
