@@ -11,8 +11,10 @@
 #include <string.h>
 #include "inlineHook.h"
 #include "headers/tinyxml2.h"
+#define TAGF "HOOKFILETEST"
 #define TAG "HOOKTEST"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
+#define LOGDF(...) __android_log_print(ANDROID_LOG_DEBUG, TAGF, __VA_ARGS__)
 
 #define CAT_PATH "/sdcard/xx/file/native/cat.xml"
 
@@ -45,11 +47,17 @@
 
 #define REAL_IF_INET6_PATH "proc/net/if_inet6"
 #define FAKE_IF_INET6_PATH "/sdcard/xx/file/native/if_inet6"
+
+#define REAL_PROC_VERSION "proc/version"
+#define FAKE_PROC_VERSION "/sdcard/xx/file/native/version"
+
 int my_init(void) __attribute__((constructor));
 //char * getfilemac();
 bool ishook();
+bool ishook3();
 int GetPropValue(const char* name, char *value);
 static char AppName[256] = { 0 };
+static char ishookflag[100] = { 0 };
 char* GetAppName() {
 	FILE *fp = NULL;
 	char path[256] = { 0 };
@@ -83,7 +91,7 @@ bool GetCatValue(char *key, char *value) {
 					const char *r = ele->GetText();
 					result = r;
 					strcpy(value, result);
-					LOGD("GetCatValue key:%s,value:%s", key, value);
+					//LOGD("GetCatValue key:%s,value:%s", key, value);
 					break;
 				}
 				ele = ele->NextSiblingElement();
@@ -114,7 +122,7 @@ bool GetSettingValue(char *key,char *value,const char *path){
 					const char *r = ele->GetText();
 					result = r;
 					strcpy(value, result);
-					LOGD("GetCatValue key:%s,value:%s", key, value);
+					//LOGD("GetCatValue key:%s,value:%s", key, value);
 					break;
 				}
 				ele = ele->NextSiblingElement();
@@ -136,7 +144,7 @@ bool SetPropResultValue(char *value, const char* format, ...) {
 	va_start(ap, format);
 	n = vsnprintf(value,size,format,ap);
 	va_end(ap);
-	LOGD("79:value::%s format:%s ", value, format);
+	//LOGD("79:value::%s format:%s ", value, format);
 	return true;
 }
 typedef int (*t_system_property_get)(const char *name, char *value);
@@ -145,6 +153,7 @@ int (*old__system_property_get)(const char *name, char *value)=NULL;
 int new__system_property_get(const char *name, char *value)
 {
 	GetAppName();
+	GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
 	int result = old__system_property_get(name, value);
 	if(!ishook()){
 		return result;
@@ -156,18 +165,24 @@ int new__system_property_get(const char *name, char *value)
 
 }
 
+
 typedef int (*t_fopen)(const char *file, const char *mode);
 t_fopen _fopen = NULL;
 void (*old_fopen)(const char *file, const char *mode)=NULL;
 void new_fopen(const char *file, const char *mode)
-{
-	
+{	
 	if(strstr(file,SETTING_PATH)){
 		return old_fopen(file,mode);
 	}
+	if(strstr(AppName,"com.donson.leplay.store2")){
+		if(!strstr(file,"sdcard/xx/file/native")&&!strstr(file,"cmdline")){
+		LOGDF("new_open:new_fopen:file:%s mode:%d ", file, mode);
+		}
+	}
 	if(!ishook())
 		return old_fopen(file,mode);
-	//}else{
+	//if(!strstr(file,"/cmdline"))
+	//	LOGD("new_fopen-----------:value::%s format:%s ", file, mode);
 	if(strstr(file,REAL_WLAN_PATH)) return old_fopen(FAKE_WLAN_PATH,mode);
 	else if(strstr(file,REAL_DUMMY_PATH)) return old_fopen(FAKE_DUMMY_PATH,mode);
 	else if(strstr(file,REAL_P2P_PATH)) return old_fopen(FAKE_P2P_PATH,mode);
@@ -180,9 +195,45 @@ void new_fopen(const char *file, const char *mode)
 	else if(strstr(file,REAL_CSD_PATH2)) return old_fopen(FAKE_CSD_PATH,mode);
 	else if(strstr(file,REAL_CSD_PATH3)) return old_fopen(FAKE_CSD_PATH,mode);
 	else if(strstr(file,REAL_IF_INET6_PATH))return old_fopen(FAKE_IF_INET6_PATH, mode);
-	else 
-		return old_fopen(file,mode);
-	//}
+	else if(strstr(file,REAL_PROC_VERSION))return old_fopen(FAKE_PROC_VERSION, mode);
+	else return old_fopen(file,mode);
+}
+typedef int (*t_open)(const char *file, const int *mode);
+t_open _open = NULL;
+int (*old_open)(const char* path, int mode);
+int new_open(const char* file, int mode) {
+	//
+	//return old_open(file,mode);
+	if(strstr(file,SETTING_PATH)){
+			return old_open(file,mode);
+	}
+	if(strstr(AppName,"com.donson.leplay.store2")){
+		if(!strstr(file,"sdcard/xx/file/native")&&!strstr(file,"cmdline")){
+		LOGDF("new_open:new_open:file:%s mode:%d ", file, mode);
+		}
+	}
+	if(!ishook3())
+		return old_open(file,mode);
+	//else
+	//LOGD("new_open:new_open:file:%s mode:%d appNAme:%s", file, mode,AppName);
+	//return old_open(file,mode);
+		//if(!strstr(file,"/cmdline"))
+		//	LOGD("new_fopen-----------:value::%s format:%s ", file, mode);
+		if(strstr(file,REAL_WLAN_PATH)) return old_open(FAKE_WLAN_PATH,mode);
+		else if(strstr(file,REAL_DUMMY_PATH))
+			return old_open(FAKE_DUMMY_PATH,mode);
+		else if(strstr(file,REAL_P2P_PATH)) return old_open(FAKE_P2P_PATH,mode);
+		else if(strstr(file,REAL_PPP_PATH)) return old_open(FAKE_PPP_PATH,mode);
+		else if(strstr(file,REAL_USBNET_PATH)) return old_open(FAKE_USBNET_PATH,mode);
+		else if(strstr(file,REAL_CID_PATH1)) return old_open(FAKE_CID_PATH,mode);
+		else if(strstr(file,REAL_CID_PATH2)) return old_open(FAKE_CID_PATH,mode);
+		else if(strstr(file,REAL_CID_PATH3)) return old_open(FAKE_CID_PATH,mode);
+		else if(strstr(file,REAL_CSD_PATH1)) return old_open(FAKE_CSD_PATH,mode);
+		else if(strstr(file,REAL_CSD_PATH2)) return old_open(FAKE_CSD_PATH,mode);
+		else if(strstr(file,REAL_CSD_PATH3)) return old_open(FAKE_CSD_PATH,mode);
+		else if(strstr(file,REAL_IF_INET6_PATH))return old_open(FAKE_IF_INET6_PATH, mode);
+		else if(strstr(file,REAL_PROC_VERSION))return old_open(FAKE_PROC_VERSION, mode);
+		else return old_open(file,mode);
 }
 
 int my_init(void)
@@ -193,8 +244,16 @@ if(registerInlineHook((uint32_t)__system_property_get,(uint32_t) new__system_pro
 else if (inlineHook((uint32_t) __system_property_get) != ELE7EN_OK) printf("error hook __system_property_get ");
 
 _fopen = (t_fopen)dlsym(libc,"fopen");
-if(registerInlineHook((uint32_t)_fopen,(uint32_t) new_fopen,(uint32_t **) &old_fopen)!=ELE7EN_OK) printf("error find fopen");
+if(registerInlineHook((uint32_t)_fopen,(uint32_t) new_fopen,(uint32_t **) &old_fopen)!=ELE7EN_OK) 
+	printf("error find fopen");
 else if(inlineHook((uint32_t) _fopen)!=ELE7EN_OK) printf("error hook fopen");
+
+_open = (t_open)dlsym(libc,"open");
+if(registerInlineHook((uint32_t)_open,(uint32_t) new_open,(uint32_t **) &old_open)!=ELE7EN_OK) 
+LOGD("error hook fopen");
+//printf("error find open");
+else if(inlineHook((uint32_t) _open)!=ELE7EN_OK) LOGD("error hook fopen");//printf("error hook open");
+
 return 0;
 }
 
@@ -203,16 +262,18 @@ bool isBrand = false;
 char model[100]={};
 bool isModel = false;
 int GetPropValue(const char* name, char *value) {
+	if(strstr(AppName,"com.donson.leplay.store2")){
+		LOGD("GetPropValue:%s,%s",name,value);
+	}
 	if (!name)
 		return -1;
 	bool bGet = false;
-//	LOGD("");
 	if(!isBrand){
 		isBrand = true;
 		GetCatValue("brand",brand);
-		LOGD("38:%s ", brand);
+		//LOGD("38:%s ", brand);
 	}
-	if(isModel){
+	if(!isModel){
 		isModel = true;
 		GetCatValue("model",model);
 	}
@@ -225,8 +286,8 @@ int GetPropValue(const char* name, char *value) {
 		bGet = GetCatValue("serial", value);
 	else if (strstr(name, "ro.boot.serialno"))
 		bGet = GetCatValue("serial", value);
-////	else if (strstr(name, "ro.board.platform"))
-//	//	bGet = GetCatValue("brand", value);
+	//else if (strstr(name, "ro.board.platform"))
+	//	bGet = GetCatValue("board", value);
 	else if (strstr(name, "ro.build.version.release"))
 		bGet = GetCatValue("version", value);
 	else if (strstr(name, "ro.product.manufacturer"))
@@ -234,13 +295,13 @@ int GetPropValue(const char* name, char *value) {
 	else if (strstr(name, "ro.product.name"))
 		bGet = GetCatValue("product", value);
 	else if (strstr(name, "ro.hardware"))
-		bGet = GetCatValue("model", value);
+		bGet = GetCatValue("hardware", value);
 	else if (strstr(name, "ro.product.board"))
 		bGet = GetCatValue("board", value);
 	else if (strstr(name, "ro.product.brand"))
 		bGet = GetCatValue("brand", value);
 	else if (strstr(name, "ro.build.custom.display.id"))
-		bGet = GetCatValue("model", value);
+		bGet = GetCatValue("id", value);
 	else if (strstr(name, "ro.build.display.id"))
 		bGet = GetCatValue("id", value);
 	else if (strstr(name, "ro.product.device"))
@@ -252,9 +313,9 @@ int GetPropValue(const char* name, char *value) {
 	else if (strstr(name, "ro.mediatek.version.release"))
 		bGet = GetCatValue("display", value);
 	else if (strstr(name, "ro.build.product"))
-		bGet = GetCatValue("model", value);
+		bGet = GetCatValue("product", value);
 	else if (strstr(name, "ro.build.internal.display.id"))
-		bGet = GetCatValue("model", value);
+		bGet = GetCatValue("id", value);
 	else if (strstr(name, "persist.radio.cfu.iccid.0"))
 		bGet = GetCatValue("simserial", value);
 	else if (strstr(name, "ril.iccid.sim1"))
@@ -269,7 +330,7 @@ int GetPropValue(const char* name, char *value) {
 		bGet = GetCatValue("meid", value);
 	else if (strstr(name, "persist.radio.meid"))
 		bGet = GetCatValue("meid", value);
-    else if(strstr(name,"gsm.sim.state")) bGet=SetPropResultValue(value,"READY");
+    else if(strstr(name,"gsm.sim.state")) bGet = GetCatValue("simstate", value);//bGet=SetPropResultValue(value,"READY");
 	else if (strstr(name, "gsm.operator.alpha"))
 		bGet = GetCatValue("simoperator", value);
 	else if (strstr(name, "gsm.sim.operator.alpha"))
@@ -278,9 +339,9 @@ int GetPropValue(const char* name, char *value) {
 		bGet = GetCatValue("simoperator", value);
 	else if (strstr(name, "permanent.radio.modem"))
 		bGet = GetCatValue("radiomodem", value);
-    else if(strstr(name,"persist.radio.modem")) bGet=SetPropResultValue(value,"TD");
+    else if(strstr(name,"persist.radio.modem")) bGet = GetCatValue("radiomodem", value);//bGet=SetPropResultValue(value,"TD");
 	else if (strstr(name, "ro.build.host"))
-		bGet = GetCatValue("model", value);
+		bGet = GetCatValue("host", value);
 	else if (strstr(name, "ro.ril.miui.imei"))
 		bGet = GetCatValue("imei", value);
 	else if (strstr(name, "ro.runtime.firstboot"))
@@ -326,11 +387,36 @@ int GetPropValue(const char* name, char *value) {
 		bGet = GetCatValue("swidth", value);
 	else if (strstr(name, "persist.sys.NV_DISPYRES"))
 		bGet = GetCatValue("sheight", value);
+	else if (strstr(name,"ro.build.characteristics")) //default or nosdcard
+		bGet = GetCatValue("characteristics", value);
+	else if (strstr(name,"ro.build.date"))
+		bGet = GetCatValue("builddate",value);
+	//else if (strstr(name,"gsm.network.type"))
+	//	bGet = GetCatValue("",value);
+	else if (strstr(name,"rild.libargs"))
+		bGet=SetPropResultValue(value,"");
+	//else if (strstr(name,"gsm.serial"))
+	//	bGet = GetCatValue("",value);
+	else if (strstr(name,"persist.radio.data.iccid"))
+		bGet = GetCatValue("simserial",value);
+	else if (strstr(name,"ro.mediatek.project.path"))
+		bGet=SetPropResultValue(value,"device/%s/%model",brand,model);
+	else if(strstr(name,"ro.miui.mcc"))
+		bGet=SetPropResultValue(value,"");
+	else if(strstr(name,"ro.miui.mnc"))
+		bGet=SetPropResultValue(value,"");
+	else if(strstr(name,"ro.ril.miui.imei0"))
+		bGet=SetPropResultValue(value,"");
+	else if(strstr(name,"ro.miui.has_real_blur"))
+		bGet=SetPropResultValue(value,"");
+	else if(strstr(name,"ro.opengles.version"))
+		bGet=SetPropResultValue(value,"196608");
+		
 /**/
 	int result = -1;
 	if (bGet) {
 		result = strlen(value);
-		LOGD("GetPropValue::: Call:%s|%s|%d", name, value, result);
+		//LOGD("GetPropValue::: Call:%s|%s|%d", name, value, result);
 	}
 	return result;
 }
@@ -347,9 +433,24 @@ bool ishook2(){
 	return false;
 	
 }
+
 bool ishook(){
+	//LOGD("ishook::: AppName Call:%s:", AppName);
+	
+	//bool bGet = GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
+	//LOGD("ishook:::ishookflag Call:%s|%s:", ishookflag,AppName);
 	if((getuid()<=1000)&&(!strstr(AppName,"getprop"))){
+		return false;
+	}else if (strstr(AppName,"org.wuji")||strstr(AppName,"com.donson.xxxiugaiqi")){
 		return false;
 	}else
 		return ishook2();
+}
+bool ishook3(){
+	if((getuid()<=1000)&&(!strstr(AppName,"getprop"))){
+		return false;
+	}else if (strstr(AppName,"org.wuji")||strstr(AppName,"com.donson.xxxiugaiqi")){
+		return false;
+	}else
+		return true;
 }

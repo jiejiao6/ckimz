@@ -19,4 +19,5 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_MODULE    := hook
 LOCAL_SRC_FILES := inlineHook.c relocate.c
+LOCAL_LDLIBS := -llog
 include $(BUILD_STATIC_LIBRARY)

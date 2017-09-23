@@ -16,7 +16,7 @@ created time: 2015-11-30
 // #include <asm/ptrace.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
-
+#include <android/log.h>
 #include "relocate.h"
 #include "include/inlineHook.h"
 
@@ -31,7 +31,8 @@ created time: 2015-11-30
 
 #define ACTION_ENABLE	0
 #define ACTION_DISABLE	1
-	
+#define TAG "HOOKTEST"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 enum hook_status {
 	REGISTERED,
 	HOOKED,
@@ -383,7 +384,8 @@ enum ele7en_status inlineHook(uint32_t target_addr)
 			break;
 		}
 	}
-
+	LOGD("item============%s=",(item == NULL)?"TRUE":"FALSE");
+	
 	if (item == NULL) {
 		return ELE7EN_ERROR_NOT_REGISTERED;
 	}

@@ -15,7 +15,7 @@ int my_init(void)
 {
 void* libc=dlopen("/system/lib/libc.so",0);
 __system_property_get=(t_system_property_get)dlsym(libc,"__system_property_get");
-if(registerInlineHook((uint32_t)__system_property_get,(uint32_t) new__system_property_get,(uint32_t **) &old__system_property_get)!= ELE7EN_OK) printf("error find __system_property_get ");
+if(registerInlineHook((uint32_t) __system_property_get,(uint32_t) new__system_property_get,(uint32_t **) &old__system_property_get)!= ELE7EN_OK) printf("error find __system_property_get ");
 else if (inlineHook((uint32_t) __system_property_get) != ELE7EN_OK) printf("error hook __system_property_get ");
 return 0;
 }
