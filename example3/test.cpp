@@ -13,8 +13,10 @@
 #include "headers/tinyxml2.h"
 #define TAGF "HOOKFILETEST"
 #define TAG "HOOKTEST"
+#define TAGS "HOOKSPRINTFTEST"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, TAG, __VA_ARGS__)
 #define LOGDF(...) __android_log_print(ANDROID_LOG_DEBUG, TAGF, __VA_ARGS__)
+#define LOGDS(...) __android_log_print(ANDROID_LOG_DEBUG, TAGS, __VA_ARGS__)
 
 #define CAT_PATH "/sdcard/xx/file/native/cat.xml"
 
@@ -154,6 +156,7 @@ int new__system_property_get(const char *name, char *value)
 {
 	GetAppName();
 	GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
+	if(strstr(name,"ro.ckis")) return strlen(strcpy(value,"AABBCC"));
 	int result = old__system_property_get(name, value);
 	if(!ishook()){
 		return result;
@@ -235,6 +238,42 @@ int new_open(const char* file, int mode) {
 		else if(strstr(file,REAL_PROC_VERSION))return old_open(FAKE_PROC_VERSION, mode);
 		else return old_open(file,mode);
 }
+// typedef int (*t_sprintf)(char * str, const char * format, ...);
+// //int sprintf (char * str, const char * format, ...);
+// t_sprintf _sprintf = NULL;
+// int (*old_sprintf)(char * str, const char * format, ...);
+// static char printvalue[100] = { 0 };
+// int new_sprintf (char * str, const char * format, ...){
+// 	//if(strstr(AppName,"com.donson.leplay.store2")){		
+			
+// 	//}
+// 	va_list ap;
+// 	int n=0,size=1000;
+// 	va_start(ap, format);
+// 	n = vsnprintf(str,size,format,ap);
+// 	if(strstr(AppName,"com.donson.leplay.store2")){		
+// 		//LOGDS("new_sprintf:new_sprintf:printvalue:%s,format:%s ", str, format);
+// 	}
+// 	// int result = old_sprintf(str,format,ap);
+// 	va_end(ap);
+// 	 return n;
+// }
+typedef int (*t_snprintf)(char * str,size_t size, const char * format, ...);
+t_snprintf _snprintf = NULL;
+int (*old_snprintf)(char * str,size_t size, const char * format, ...);
+int new_snprintf (char * str,size_t size, const char * format, ...){
+	va_list ap;
+	int n=0,size2=1000;
+	va_start(ap, format);
+	n = vsnprintf(str,size,format,ap);
+	if(strstr(AppName,"com.donson.leplay.store2")){		
+		LOGDS("new_snprintf:new_snprintf:appname:%s,str:%s,format:%s ", AppName,str, format);
+	}
+	// int result = old_sprintf(str,format,ap);
+	va_end(ap);
+	 return n;
+}
+//snprintf(char *dest, size_t size,const char *format,...)
 
 int my_init(void)
 {
@@ -251,9 +290,17 @@ else if(inlineHook((uint32_t) _fopen)!=ELE7EN_OK) printf("error hook fopen");
 _open = (t_open)dlsym(libc,"open");
 if(registerInlineHook((uint32_t)_open,(uint32_t) new_open,(uint32_t **) &old_open)!=ELE7EN_OK) 
 LOGD("error hook fopen");
-//printf("error find open");
 else if(inlineHook((uint32_t) _open)!=ELE7EN_OK) LOGD("error hook fopen");//printf("error hook open");
 
+// _sprintf = (t_sprintf)dlsym(libc,"sprintf");
+// if(registerInlineHook((uint32_t) _sprintf,(uint32_t) new_sprintf,(uint32_t **) &old_sprintf)!=ELE7EN_OK)
+// 	LOGD("error fins sprintf");
+// else if(inlineHook((uint32_t) _sprintf)!=ELE7EN_OK) LOGDS("error hook sprintf");
+
+_snprintf = (t_snprintf)dlsym(libc,"snprintf");
+if(registerInlineHook((uint32_t) _snprintf,(uint32_t) new_snprintf,(uint32_t **) &old_snprintf)!=ELE7EN_OK)
+	LOGD("error fins snprintf");
+else if(inlineHook((uint32_t) _snprintf)!=ELE7EN_OK) LOGDS("error hook snprintf");
 return 0;
 }
 
