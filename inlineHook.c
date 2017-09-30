@@ -384,7 +384,6 @@ enum ele7en_status inlineHook(uint32_t target_addr)
 			break;
 		}
 	}
-	LOGD("item============%s=",(item == NULL)?"TRUE":"FALSE");
 	
 	if (item == NULL) {
 		return ELE7EN_ERROR_NOT_REGISTERED;

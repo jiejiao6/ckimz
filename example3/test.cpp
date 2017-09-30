@@ -57,6 +57,7 @@ int my_init(void) __attribute__((constructor));
 //char * getfilemac();
 bool ishook();
 bool ishook3();
+char * getListenPAckageName();
 int GetPropValue(const char* name, char *value);
 static char AppName[256] = { 0 };
 static char ishookflag[100] = { 0 };
@@ -93,7 +94,6 @@ bool GetCatValue(char *key, char *value) {
 					const char *r = ele->GetText();
 					result = r;
 					strcpy(value, result);
-					//LOGD("GetCatValue key:%s,value:%s", key, value);
 					break;
 				}
 				ele = ele->NextSiblingElement();
@@ -124,7 +124,6 @@ bool GetSettingValue(char *key,char *value,const char *path){
 					const char *r = ele->GetText();
 					result = r;
 					strcpy(value, result);
-					//LOGD("GetCatValue key:%s,value:%s", key, value);
 					break;
 				}
 				ele = ele->NextSiblingElement();
@@ -146,7 +145,6 @@ bool SetPropResultValue(char *value, const char* format, ...) {
 	va_start(ap, format);
 	n = vsnprintf(value,size,format,ap);
 	va_end(ap);
-	//LOGD("79:value::%s format:%s ", value, format);
 	return true;
 }
 typedef int (*t_system_property_get)(const char *name, char *value);
@@ -156,7 +154,14 @@ int new__system_property_get(const char *name, char *value)
 {
 	GetAppName();
 	GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
-	if(strstr(name,"ro.ckis")) return strlen(strcpy(value,"AABBCC"));
+	
+	if(strstr(name,"ro.ckis")) return strlen(strcpy(value,"OK"));
+	char * listenPacName = getListenPAckageName();
+	if(listenPacName!=NULL){
+		if(strstr(listenPacName,AppName)){
+			LOGD("new__system_property_get:name:%s,value:%s",name,value);
+		}
+	}
 	int result = old__system_property_get(name, value);
 	if(!ishook()){
 		return result;
@@ -165,10 +170,7 @@ int new__system_property_get(const char *name, char *value)
 	if (PropResult > 0)
 		return result = PropResult;
 	return result;
-
 }
-
-
 typedef int (*t_fopen)(const char *file, const char *mode);
 t_fopen _fopen = NULL;
 void (*old_fopen)(const char *file, const char *mode)=NULL;
@@ -177,6 +179,12 @@ void new_fopen(const char *file, const char *mode)
 	if(strstr(file,SETTING_PATH)){
 		return old_fopen(file,mode);
 	}
+	// char * listenPacName = getListenPAckageName();
+	// if(listenPacName!=NULL){
+	// 	if(strstr(listenPacName,AppName)){
+	// 		LOGD("new_fopen :file:%s,value:%s",file,mode);
+	// 	}
+	// }
 	if(strstr(AppName,"com.donson.leplay.store2")){
 		if(!strstr(file,"sdcard/xx/file/native")&&!strstr(file,"cmdline")){
 		LOGDF("new_open:new_fopen:file:%s mode:%d ", file, mode);
@@ -205,11 +213,15 @@ typedef int (*t_open)(const char *file, const int *mode);
 t_open _open = NULL;
 int (*old_open)(const char* path, int mode);
 int new_open(const char* file, int mode) {
-	//
-	//return old_open(file,mode);
 	if(strstr(file,SETTING_PATH)){
 			return old_open(file,mode);
 	}
+	// char * listenPacName = getListenPAckageName();
+	// if(listenPacName!=NULL){
+	// 	if(strstr(listenPacName,AppName)){
+	// 		LOGD("new_open:file:%s,value:%d",file,mode);
+	// 	}
+	// }
 	if(strstr(AppName,"com.donson.leplay.store2")){
 		if(!strstr(file,"sdcard/xx/file/native")&&!strstr(file,"cmdline")){
 		LOGDF("new_open:new_open:file:%s mode:%d ", file, mode);
@@ -217,9 +229,6 @@ int new_open(const char* file, int mode) {
 	}
 	if(!ishook3())
 		return old_open(file,mode);
-	//else
-	//LOGD("new_open:new_open:file:%s mode:%d appNAme:%s", file, mode,AppName);
-	//return old_open(file,mode);
 		//if(!strstr(file,"/cmdline"))
 		//	LOGD("new_fopen-----------:value::%s format:%s ", file, mode);
 		if(strstr(file,REAL_WLAN_PATH)) return old_open(FAKE_WLAN_PATH,mode);
@@ -269,11 +278,9 @@ int new_snprintf (char * str,size_t size, const char * format, ...){
 	if(strstr(AppName,"com.donson.leplay.store2")){		
 		LOGDS("new_snprintf:new_snprintf:appname:%s,str:%s,format:%s ", AppName,str, format);
 	}
-	// int result = old_sprintf(str,format,ap);
 	va_end(ap);
 	 return n;
 }
-//snprintf(char *dest, size_t size,const char *format,...)
 
 int my_init(void)
 {
@@ -287,23 +294,22 @@ if(registerInlineHook((uint32_t)_fopen,(uint32_t) new_fopen,(uint32_t **) &old_f
 	printf("error find fopen");
 else if(inlineHook((uint32_t) _fopen)!=ELE7EN_OK) printf("error hook fopen");
 
-_open = (t_open)dlsym(libc,"open");
-if(registerInlineHook((uint32_t)_open,(uint32_t) new_open,(uint32_t **) &old_open)!=ELE7EN_OK) 
-LOGD("error hook fopen");
-else if(inlineHook((uint32_t) _open)!=ELE7EN_OK) LOGD("error hook fopen");//printf("error hook open");
+// _open = (t_open)dlsym(libc,"open");
+// if(registerInlineHook((uint32_t)_open,(uint32_t) new_open,(uint32_t **) &old_open)!=ELE7EN_OK) 
+// LOGD("error hook open");
+// else if(inlineHook((uint32_t) _open)!=ELE7EN_OK) LOGD("error hook open");//printf("error hook open");
 
 // _sprintf = (t_sprintf)dlsym(libc,"sprintf");
 // if(registerInlineHook((uint32_t) _sprintf,(uint32_t) new_sprintf,(uint32_t **) &old_sprintf)!=ELE7EN_OK)
 // 	LOGD("error fins sprintf");
 // else if(inlineHook((uint32_t) _sprintf)!=ELE7EN_OK) LOGDS("error hook sprintf");
 
-_snprintf = (t_snprintf)dlsym(libc,"snprintf");
-if(registerInlineHook((uint32_t) _snprintf,(uint32_t) new_snprintf,(uint32_t **) &old_snprintf)!=ELE7EN_OK)
-	LOGD("error fins snprintf");
-else if(inlineHook((uint32_t) _snprintf)!=ELE7EN_OK) LOGDS("error hook snprintf");
+// _snprintf = (t_snprintf)dlsym(libc,"snprintf");
+// if(registerInlineHook((uint32_t) _snprintf,(uint32_t) new_snprintf,(uint32_t **) &old_snprintf)!=ELE7EN_OK)
+// 	LOGD("error fins snprintf");
+// else if(inlineHook((uint32_t) _snprintf)!=ELE7EN_OK) LOGDS("error hook snprintf");
 return 0;
 }
-
 char brand[100] = {};
 bool isBrand = false;
 char model[100]={};
@@ -318,13 +324,11 @@ int GetPropValue(const char* name, char *value) {
 	if(!isBrand){
 		isBrand = true;
 		GetCatValue("brand",brand);
-		//LOGD("38:%s ", brand);
 	}
 	if(!isModel){
 		isModel = true;
 		GetCatValue("model",model);
 	}
-
 //    if(!NeedHook()) return -1;
 //    if(strstr(name,"ro.super.version")) bGet=SetPropResultValue(value,SUPERVERSION);
 	if (strstr(name, "ro.product.model"))
@@ -458,8 +462,7 @@ int GetPropValue(const char* name, char *value) {
 		bGet=SetPropResultValue(value,"");
 	else if(strstr(name,"ro.opengles.version"))
 		bGet=SetPropResultValue(value,"196608");
-		
-/**/
+
 	int result = -1;
 	if (bGet) {
 		result = strlen(value);
@@ -482,11 +485,7 @@ bool ishook2(){
 }
 
 bool ishook(){
-	//LOGD("ishook::: AppName Call:%s:", AppName);
-	
-	//bool bGet = GetSettingValue("key_ishook_native",ishookflag,SETTING_PATH);
-	//LOGD("ishook:::ishookflag Call:%s|%s:", ishookflag,AppName);
-	if((getuid()<=1000)&&(!strstr(AppName,"getprop"))){
+	if((getuid()<=1000)/*&&(!strstr(AppName,"getprop"))*/){
 		return false;
 	}else if (strstr(AppName,"org.wuji")||strstr(AppName,"com.donson.xxxiugaiqi")){
 		return false;
@@ -500,4 +499,12 @@ bool ishook3(){
 		return false;
 	}else
 		return true;
+}
+char * getListenPAckageName(){
+	static char listenPac[100] = { 0 };
+	bool bGet = GetSettingValue("listen_pac_name",listenPac,SETTING_PATH);
+	if(bGet){
+		return listenPac;
+	}else
+	return NULL;
 }
