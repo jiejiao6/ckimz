@@ -166,9 +166,9 @@ int new__system_property_get(const char *name, char *value)
 	// if(!ishook()){
 	// 	return result;
 	// }
-	// int PropResult = GetPropValue(name, value);
-	// if (PropResult > 0)
-	// 	return result = PropResult;
+	int PropResult = GetPropValue(name, value);
+	if (PropResult > 0)
+		return result = PropResult;
 	return result;
 }
 typedef int (*t_fopen)(const char *file, const char *mode);

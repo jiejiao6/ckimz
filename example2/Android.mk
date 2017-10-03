@@ -24,6 +24,7 @@ include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE    := libckis
-LOCAL_SRC_FILES := test.c
+LOCAL_SRC_FILES := test.cpp tinyxml.cpp
+LOCAL_LDLIBS := -llog
 LOCAL_STATIC_LIBRARIES := libhook
 include $(BUILD_SHARED_LIBRARY)
